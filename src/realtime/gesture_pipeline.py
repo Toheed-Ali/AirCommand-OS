@@ -180,17 +180,17 @@ def draw_hud(frame, prediction: dict, smoother_result: dict,
     cv2.rectangle(frame, (w - 90, 36), (w - 10, 44), (50, 50, 50), -1)
     cv2.rectangle(frame, (w - 90, 36), (w - 90 + fill_w, 44), (120, 120, 200), -1)
 
-    # Controls
+    # Controls (shifted up to prevent taskbar overlap)
     cv2.putText(frame, "Q = quit   R = reset smoother",
-                (14, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)
+                (14, h - 45), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)
 
-    # Styled Glassmorphism Gestures Map Guide in Bottom-Left
+    # Styled Glassmorphism Gestures Map Guide in Bottom-Left (shifted up)
     overlay_bl = frame.copy()
-    cv2.rectangle(overlay_bl, (14, h - 160), (320, h - 25), (20, 20, 20), -1)
+    cv2.rectangle(overlay_bl, (14, h - 195), (320, h - 60), (20, 20, 20), -1)
     cv2.addWeighted(overlay_bl, 0.75, frame, 0.25, 0, frame)
 
     # Title
-    cv2.putText(frame, "GESTURE CONTROLS GUIDE", (22, h - 144),
+    cv2.putText(frame, "GESTURE CONTROLS GUIDE", (22, h - 179),
                 cv2.FONT_HERSHEY_DUPLEX, 0.45, (0, 200, 255), 1, cv2.LINE_AA)
 
     guide_items = [
@@ -205,7 +205,7 @@ def draw_hud(frame, prediction: dict, smoother_result: dict,
     stable_gesture = smoother_result.get("stable_gesture", "unknown")
 
     for i, (g_key, text) in enumerate(guide_items):
-        y_pos = h - 124 + (i * 15)
+        y_pos = h - 159 + (i * 15)
         if stable_gesture == g_key:
             row_colour = COLOR_HOLD if hold else COLOR_VALID
             cv2.circle(frame, (23, y_pos - 4), 3, row_colour, -1)
