@@ -94,7 +94,7 @@ labels = ["fist", "l_gesture", "palm", "peace", "three_fingers", "thumbs_up"]
 ACTION_MAPPING = {
     "fist":          "Fist (Play/Pause Media)",
     "l_gesture":     "L Gesture (Open Chrome)",
-    "palm":          "Palm (Shift + Tab)",
+    "palm":          "Palm (Open Settings)",
     "peace":         "Peace (Brightness Up)",
     "three_fingers": "Three Fingers (Brightness Down)",
     "thumbs_up":     "Thumbs Up (Volume Up)"
@@ -231,7 +231,7 @@ Recently, the dataset went through a **rigorous 80-20 Train/Test split** where 2
   1. **`3 fingers`** (Three Fingers → Brightness Down)
   2. **`fist`** (Fist → Play / Pause Media)
   3. **`L`** (L Gesture → Open Chrome)
-  4. **`palm`** (Palm → Shift + Tab)
+  4. palm (Palm → Open Settings)
   5. **`peace`** (Peace → Brightness Up)
   6. **`thumbs-up`** (Thumbs Up → Volume Up)
 

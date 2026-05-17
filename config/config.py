@@ -53,7 +53,7 @@ GESTURE_ACTION_MAP = {
     "thumbs_up":     {"action": "volume_up",        "label": "Volume Up"},
     "fist":          {"action": "play_pause",        "label": "Play / Pause"},
     "l_gesture":     {"action": "open_app",          "label": "Open Chrome"},
-    "palm":          {"action": "shift_tab",         "label": "Shift + Tab"},
+    "palm":          {"action": "open_settings",     "label": "Open Settings"},
     "peace":         {"action": "brightness_up",     "label": "Brightness Up"},
     "three_fingers": {"action": "brightness_down",   "label": "Brightness Down"},
 }

@@ -180,6 +180,25 @@ class SystemActions:
         elif SystemActions.OS == "Windows":
             subprocess.run(["shutdown", "/s", "/t", "0"], check=False)
 
+    @staticmethod
+    def open_settings():
+        if SystemActions.OS == "Linux":
+            try:
+                subprocess.Popen(["gnome-control-center"])
+            except Exception:
+                try:
+                    subprocess.Popen(["unity-control-center"])
+                except Exception:
+                    logger.warning("Linux settings manager not found")
+        elif SystemActions.OS == "Darwin":
+            subprocess.Popen(["open", "-a", "System Settings"])
+        elif SystemActions.OS == "Windows":
+            try:
+                subprocess.Popen(["start", "ms-settings:"], shell=True)
+            except Exception as e:
+                logger.warning(f"Windows open_settings error: {e}")
+        logger.info("ACTION: open_settings")
+
 
 ACTION_HANDLERS: dict[str, Callable] = {
     "volume_up":      SystemActions.volume_up,
@@ -190,6 +209,7 @@ ACTION_HANDLERS: dict[str, Callable] = {
     "open_app":       SystemActions.open_app,
     "shift_tab":      SystemActions.shift_tab,
     "power_off":      SystemActions.power_off,
+    "open_settings":  SystemActions.open_settings,
 }
 
 
@@ -305,11 +325,11 @@ if __name__ == "__main__":
     engine = ActionEngine(dry_run=True)
 
     print("Testing tap actions...")
-    for gesture in ["thumbs_up", "fist", "peace", "three_fingers", "l_gesture"]:
+    for gesture in ["thumbs_up", "fist", "peace", "three_fingers", "l_gesture", "palm"]:
         result = engine.on_gesture(gesture)
-        print(f"  {gesture:<15} → {result['action'] if result else 'COOLDOWN'}")
+        print(f"  {gesture:<15} -> {result['action'] if result else 'COOLDOWN'}")
         time.sleep(0.1)
 
-    print("\nTesting hold action (thumbs_up hold → volume_down)...")
+    print("\nTesting hold action (thumbs_up hold -> volume_down)...")
     result = engine.on_hold("thumbs_up")
-    print(f"  hold thumbs_up → {result['action'] if result else 'None'}")
+    print(f"  hold thumbs_up -> {result['action'] if result else 'None'}")

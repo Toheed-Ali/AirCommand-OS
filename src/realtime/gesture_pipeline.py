@@ -38,6 +38,7 @@ from config.config import (
     CONFIDENCE_THRESHOLD, SMOOTHING_WINDOW_SIZE,
     WEBSOCKET_HOST, WEBSOCKET_PORT,
     MP_HAND_LANDMARKER_MODEL_PATH,
+    GESTURE_ACTION_MAP, GESTURE_DISPLAY_NAMES,
 )
 from src.realtime.temporal_smoother import TemporalSmoother
 from src.realtime.action_engine import ActionEngine
@@ -182,6 +183,25 @@ def draw_hud(frame, prediction: dict, smoother_result: dict,
     # Controls
     cv2.putText(frame, "Q = quit   R = reset smoother",
                 (14, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)
+
+    # Styled Glassmorphism Gesture & Action Card in Bottom-Left
+    overlay_bl = frame.copy()
+    cv2.rectangle(overlay_bl, (14, h - 100), (320, h - 35), (20, 20, 20), -1)
+    cv2.addWeighted(overlay_bl, 0.75, frame, 0.25, 0, frame)
+
+    accent_colour = COLOR_HOLD if hold else (COLOR_VALID if valid else COLOR_INVALID)
+    stable_gesture = smoother_result.get("stable_gesture", "unknown")
+    if stable_gesture not in ("unknown", "invalid"):
+        g_disp = GESTURE_DISPLAY_NAMES.get(stable_gesture, stable_gesture).upper()
+        act_disp = GESTURE_ACTION_MAP.get(stable_gesture, {}).get("label", "—").upper()
+    else:
+        g_disp = "—"
+        act_disp = "IDLE"
+
+    cv2.putText(frame, f"GESTURE: {g_disp}", (26, h - 77),
+                cv2.FONT_HERSHEY_DUPLEX, 0.55, accent_colour, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"ACTION:  {act_disp}", (26, h - 52),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_TEXT, 1, cv2.LINE_AA)
 
 
 # ─── Main pipeline ─────────────────────────────────────────────────────────────

@@ -37,7 +37,7 @@ Recently, the dataset went through a **rigorous 80-20 Train/Test split** where 2
   1. **`3 fingers`** (Three Fingers → Brightness Down)
   2. **`fist`** (Fist → Play / Pause Media)
   3. **`L`** (L Gesture → Open Chrome)
-  4. **`palm`** (Palm → Shift + Tab)
+  4. palm (Palm → Open Settings)
   5. **`peace`** (Peace → Brightness Up)
   6. **`thumbs-up`** (Thumbs Up → Volume Up)
 
@@ -91,7 +91,7 @@ The deep learning model achieved outstanding performance during evaluation on th
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **fist** | 0.9919 | 1.0000 | 0.9959 | 245 | Fist (Play/Pause Media) |
 | **l_gesture** | 1.0000 | 1.0000 | 1.0000 | 159 | L Gesture (Open Chrome) |
-| **palm** | 0.9975 | 0.9975 | 0.9975 | 394 | Palm (Shift + Tab) |
+| **palm** | 0.9975 | 0.9975 | 0.9975 | 394 | Palm (Open Settings) |
 | **peace** | 1.0000 | 0.9982 | 0.9991 | 546 | Peace (Brightness Up) |
 | **three_fingers** | 1.0000 | 1.0000 | 1.0000 | 640 | Three Fingers (Brightness Down) |
 | **thumbs_up** | 1.0000 | 0.9870 | 0.9935 | 77 | Thumbs Up (Volume Up) |
