@@ -1,0 +1,46 @@
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+logs/*.log
+
+# ---- Large binary / data directories ----
+# Dataset images (too large for git)
+data/
+dataset/
+
+# Trained model files
+models/
+
+# Exports
+exports/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# Environment variables
+.env
+.env.local
