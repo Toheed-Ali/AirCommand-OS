@@ -1,4 +1,4 @@
-# AirCommand-OS — Hand Gesture Recognition Project Journey & Report
+# AirCommand-OS — Hand Gesture Recognition Project Report
 
 Welcome to the complete documentation and technical journey of **AirCommand-OS**, a real-time computer vision and deep learning system that translates hand gestures into OS-level system actions, integrated with a Flutter mobile app via WebSocket.
 
