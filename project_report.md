@@ -125,4 +125,17 @@ The trained Keras model is converted into a **quantised Float16 TFLite model** (
 
 ---
 
+## 9. End-to-End Development & Execution Workflow
+To reproduce the zero-leakage model training, mobile conversion, and live control deployment, the pipeline runs chronologically as follows:
+
+1. **Dataset Split Restoration:** Organize captured images into isolated split folders (`dataset/train/` and `dataset/test/`), separating them by gesture subdirectories.
+2. **Raw Landmark Extraction (`process_dataset.py`):** Parses splits independently using Google MediaPipe Tasks API, generating `train_raw.csv` and `test_raw.csv` inside `data/raw/` (completely avoiding initial data leakage).
+3. **Training Augmentation (`augment_data.py`):** Loads only the training CSV and applies spatial perturbations (rotations, scales, joint jittering) to balance all classes, outputting `train_augmented.csv` while leaving `test_raw.csv` pristine.
+4. **Leak-Free Preprocessing (`preprocess.py`):** Fits a `StandardScaler` strictly on the train partition, normalizes all landmarks, splits validation (15%) from the training set, and exports preprocessed numpy splits (`X_train.npy`, etc.).
+5. **Model Classification Training (`train.py`):** Trains the feed-forward MLP using the preprocessed train/validation arrays, applies early stopping to avoid overfitting, and logs a comprehensive evaluation report.
+6. **Mobile Edge Conversion (`export_tflite.py`):** Quantizes the best Keras model to Float16, saving `gesture_model.tflite`, dynamic Flutter integration parameters in `model_spec.json`, and Dart-friendly scaler values in `scaler_params.json`.
+7. **Live Inference & Remote App Bridge (`gesture_pipeline.py`):** Streams camera frames, filters joint landmarks, smooths predictions via a 12-frame majority voting window, dispatches system commands, and broadcasts active gestures to the Flutter app via a low-latency WebSockets server.
+
+---
+
 *Report generated successfully on behalf of the AirCommand-OS pipeline.*

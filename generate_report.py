@@ -303,6 +303,19 @@ The trained Keras model is converted into a **quantised Float16 TFLite model** (
 
 ---
 
+## 9. End-to-End Development & Execution Workflow
+To reproduce the zero-leakage model training, mobile conversion, and live control deployment, the pipeline runs chronologically as follows:
+
+1. **Dataset Split Restoration:** Organize captured images into isolated split folders (`dataset/train/` and `dataset/test/`), separating them by gesture subdirectories.
+2. **Raw Landmark Extraction (`process_dataset.py`):** Parses splits independently using Google MediaPipe Tasks API, generating `train_raw.csv` and `test_raw.csv` inside `data/raw/` (completely avoiding initial data leakage).
+3. **Training Augmentation (`augment_data.py`):** Loads only the training CSV and applies spatial perturbations (rotations, scales, joint jittering) to balance all classes, outputting `train_augmented.csv` while leaving `test_raw.csv` pristine.
+4. **Leak-Free Preprocessing (`preprocess.py`):** Fits a `StandardScaler` strictly on the train partition, normalizes all landmarks, splits validation (15%) from the training set, and exports preprocessed numpy splits (`X_train.npy`, etc.).
+5. **Model Classification Training (`train.py`):** Trains the feed-forward MLP using the preprocessed train/validation arrays, applies early stopping to avoid overfitting, and logs a comprehensive evaluation report.
+6. **Mobile Edge Conversion (`export_tflite.py`):** Quantizes the best Keras model to Float16, saving `gesture_model.tflite`, dynamic Flutter integration parameters in `model_spec.json`, and Dart-friendly scaler values in `scaler_params.json`.
+7. **Live Inference & Remote App Bridge (`gesture_pipeline.py`):** Streams camera frames, filters joint landmarks, smooths predictions via a 12-frame majority voting window, dispatches system commands, and broadcasts active gestures to the Flutter app via a low-latency WebSockets server.
+
+---
+
 *Report generated successfully on behalf of the AirCommand-OS pipeline.*
 """
     with open(MD_OUTPUT_PATH, "w", encoding="utf-8") as f:
@@ -727,6 +740,32 @@ def generate_docx():
     )
     p_flutter.paragraph_format.line_spacing = 1.15
     p_flutter.paragraph_format.space_after = Pt(12)
+
+    # Section 9
+    add_styled_heading("9. End-to-End Development & Execution Workflow", 1)
+    p_workflow_intro = doc.add_paragraph(
+        "To reproduce the zero-leakage model training, mobile conversion, and live control deployment, "
+        "the pipeline executes chronologically across the following seven key stages:"
+    )
+    p_workflow_intro.paragraph_format.line_spacing = 1.15
+    p_workflow_intro.paragraph_format.space_after = Pt(8)
+
+    workflow_steps = [
+        ("Dataset Splits Curation", "Organize raw camera images into isolated split folders (dataset/train/ and dataset/test/) to safeguard physical class separations."),
+        ("Raw Landmark Extraction (process_dataset.py)", "Extracts coordinate vectors using MediaPipe, generating independent train_raw.csv and test_raw.csv files with zero initial leakage."),
+        ("Isolated Training Augmentation (augment_data.py)", "Performs mirror-flipping, scaling, and noise additions strictly on the training CSV to balance classes, keeping testing landmarks pristine."),
+        ("Leak-Free Normalisation & Splitting (preprocess.py)", "Fits standard scaler strictly on the augmented training split, applies geometric transformations, splits validation (15%), and exports preprocessed numpy splits."),
+        ("MLP Model Training & Evaluation (train.py)", "Trains the feed-forward MLP with early stopping on validation loss, evaluating the final model on pristine test set arrays."),
+        ("Mobile Edge TFLite Conversion (export_tflite.py)", "Quantizes Keras weight matrices to Float16, saving gesture_model.tflite, model_spec.json, and scaler parameters for Dart integration."),
+        ("Live Inference & Client WebSockets (gesture_pipeline.py)", "Executes camera frame inference, coordinates feature scaling, filters gestures via majority voting, dispatches system commands, and broadcasts state to Flutter.")
+    ]
+    for step_t, step_d in workflow_steps:
+        p_step = doc.add_paragraph(style='List Bullet')
+        p_step.paragraph_format.space_after = Pt(4)
+        run_s = p_step.add_run(f"{step_t}: ")
+        run_s.bold = True
+        run_s.font.color.rgb = COLOR_SECONDARY
+        p_step.add_run(step_d)
 
     # Save
     doc.save(DOCX_OUTPUT_PATH)
