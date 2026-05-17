@@ -200,7 +200,7 @@ def train(epochs: int = EPOCHS, batch_size: int = BATCH_SIZE):
 
     # ── Model already saved by checkpoint callback ──
     print(f"\n[Train] Best model -> {KERAS_MODEL_PATH}")
-    print("[Train] Training complete ✓")
+    print("[Train] Training complete (success)")
 
     return model, history, eval_results
 

@@ -26,12 +26,11 @@ from tqdm import tqdm
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config.config import (
     ROOT_DIR, RAW_DIR, NUM_LANDMARKS, COORDS_PER_LM,
-    MP_HAND_LANDMARKER_MODEL_PATH,
+    MP_HAND_LANDMARKER_MODEL_PATH, RAW_TRAIN_CSV_PATH, RAW_TEST_CSV_PATH,
 )
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 DATASET_DIR = ROOT_DIR / "dataset"
-OUTPUT_CSV  = RAW_DIR / "landmarks_raw.csv"
 
 # Map folder names to config classes
 FOLDER_TO_CLASS = {
@@ -69,25 +68,26 @@ def process():
     )
     detector = vision.HandLandmarker.create_from_options(options)
 
-    # Prepare CSV
+    # Prepare CSV Header
     header = [f"x{i}" if j == 0 else f"y{i}" if j == 1 else f"z{i}"
               for i in range(NUM_LANDMARKS) for j in range(COORDS_PER_LM)]
     header.append("gesture")
 
-    rows_count = 0
-    fail_count = 0
+    # Iterate through splits (train/test)
+    for split in ["train", "test"]:
+        split_dir = DATASET_DIR / split
+        if not split_dir.exists():
+            continue
 
-    with open(OUTPUT_CSV, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
+        output_csv = RAW_TRAIN_CSV_PATH if split == "train" else RAW_TEST_CSV_PATH
+        logger.info(f"Processing split: {split} -> Saving to {output_csv}")
 
-        # Iterate through splits (train/test)
-        for split in ["train", "test"]:
-            split_dir = DATASET_DIR / split
-            if not split_dir.exists():
-                continue
+        rows_count = 0
+        fail_count = 0
 
-            logger.info(f"Processing split: {split}")
+        with open(output_csv, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
 
             # Iterate through gesture folders
             for folder_name, class_name in FOLDER_TO_CLASS.items():
@@ -116,11 +116,10 @@ def process():
                     else:
                         fail_count += 1
 
+        logger.info(f"Split '{split}' completed: {rows_count} landmarks, {fail_count} failed detections.\n")
+
     detector.close()
-    logger.info(f"\nProcessing complete!")
-    logger.info(f"Total landmarks extracted: {rows_count}")
-    logger.info(f"Failed detections (skipped): {fail_count}")
-    logger.info(f"Output saved to: {OUTPUT_CSV}")
+    logger.info("[Process Dataset] All splits successfully processed!")
 
 
 if __name__ == "__main__":

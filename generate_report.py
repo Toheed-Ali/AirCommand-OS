@@ -54,14 +54,38 @@ if EVAL_REPORT_PATH.exists():
 
 # Prepare Classification Data
 labels = ["fist", "l_gesture", "palm", "peace", "three_fingers", "thumbs_up"]
-class_report_data = [
-    ("fist", "1.0000", "0.9988", "0.9994", "2400", "Fist (Play/Pause Media)"),
-    ("l_gesture", "1.0000", "1.0000", "1.0000", "2400", "L Gesture (Open Chrome)"),
-    ("palm", "0.9996", "0.9996", "0.9996", "2400", "Palm (Shift + Tab)"),
-    ("peace", "1.0000", "1.0000", "1.0000", "2400", "Peace (Brightness Up)"),
-    ("three_fingers", "0.9992", "0.9996", "0.9994", "2400", "Three Fingers (Brightness Down)"),
-    ("thumbs_up", "0.9992", "1.0000", "0.9996", "2400", "Thumbs Up (Volume Up)")
-]
+
+ACTION_MAPPING = {
+    "fist":          "Fist (Play/Pause Media)",
+    "l_gesture":     "L Gesture (Open Chrome)",
+    "palm":          "Palm (Shift + Tab)",
+    "peace":         "Peace (Brightness Up)",
+    "three_fingers": "Three Fingers (Brightness Down)",
+    "thumbs_up":     "Thumbs Up (Volume Up)"
+}
+
+class_report_data = []
+for i, label in enumerate(labels):
+    # Support is the sum of raw rows
+    support = sum(confusion_matrix[i])
+    
+    # Precision, Recall, F1 calculations
+    tp = confusion_matrix[i][i]
+    fp = sum(confusion_matrix[j][i] for j in range(len(labels)) if j != i)
+    fn = sum(confusion_matrix[i][j] for j in range(len(labels)) if j != i)
+    
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+    
+    class_report_data.append((
+        label,
+        f"{precision:.4f}",
+        f"{recall:.4f}",
+        f"{f1:.4f}",
+        str(support),
+        ACTION_MAPPING[label]
+    ))
 
 
 # ─── XML Helper Functions for Premium DOCX Styling ────────────────────────────

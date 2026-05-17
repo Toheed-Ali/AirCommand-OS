@@ -78,8 +78,8 @@ Input (63 normalized features)
 The deep learning model achieved outstanding performance during evaluation on the held-out **test dataset**:
 
 ### Overall Performance Metrics:
-* **Test Set Accuracy:** `99.9653%` (Perfect classification of raw gestures!)
-* **Weighted F1 Score:** `0.999653`
+* **Test Set Accuracy:** `99.8544%` (Perfect classification of raw gestures!)
+* **Weighted F1 Score:** `0.998545`
 
 ### Classification Report:
 | Class / Gesture | Precision | Recall | F1-Score | Support |
@@ -94,12 +94,12 @@ The deep learning model achieved outstanding performance during evaluation on th
 ### Confusion Matrix:
 | Actual \ Predicted | fist | l_gesture | palm | peace | three_fingers | thumbs_up |
 | --- | --- | --- | --- | --- | --- | --- |
-| **fist** | 2397 | 0 | 0 | 0 | 1 | 2 |
-| **l_gesture** | 0 | 2400 | 0 | 0 | 0 | 0 |
-| **palm** | 0 | 0 | 2399 | 0 | 1 | 0 |
-| **peace** | 0 | 0 | 0 | 2400 | 0 | 0 |
-| **three_fingers** | 0 | 0 | 1 | 0 | 2399 | 0 |
-| **thumbs_up** | 0 | 0 | 0 | 0 | 0 | 2400 |
+| **fist** | 245 | 0 | 0 | 0 | 0 | 0 |
+| **l_gesture** | 0 | 159 | 0 | 0 | 0 | 0 |
+| **palm** | 1 | 0 | 393 | 0 | 0 | 0 |
+| **peace** | 0 | 0 | 1 | 545 | 0 | 0 |
+| **three_fingers** | 0 | 0 | 0 | 0 | 640 | 0 |
+| **thumbs_up** | 1 | 0 | 0 | 0 | 0 | 76 |
 
 
 ---

@@ -2,13 +2,14 @@
 preprocess.py — Feature engineering and dataset preparation.
 
 Pipeline:
-  1. Load augmented CSV
-  2. Wrist-origin normalisation (translate hand to origin)
-  3. Hand-size normalisation (scale by wrist→middle-finger-tip distance)
-  4. Z-depth clipping (MediaPipe z is noisy relative to xy)
-  5. StandardScaler fit on training set only (no data leakage)
-  6. Stratified train / validation / test split
-  7. Save processed splits + fitted scaler + label encoder
+  1. Load separate train and test raw/augmented CSV files.
+  2. Wrist-origin normalisation (translate hand to origin).
+  3. Hand-size normalisation (scale by wrist→middle-finger-tip distance).
+  4. Z-depth clipping (MediaPipe z is noisy relative to xy).
+  5. Split training data into Train (85%) and Validation (15%).
+  6. Fit StandardScaler strictly on the training set only to prevent data leakage.
+  7. Apply scale transform to train, val, and test splits.
+  8. Save processed splits + fitted scaler + label encoder.
 
 Usage:
     python src/preprocessing/preprocess.py
@@ -26,11 +27,10 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config.config import (
-    AUGMENTED_CSV_PATH, CSV_PATH, PROCESSED_DIR,
-    GESTURE_CLASSES, NUM_LANDMARKS, FEATURE_SIZE,
+    RAW_TRAIN_CSV_PATH, RAW_TEST_CSV_PATH, AUGMENTED_TRAIN_CSV_PATH,
+    PROCESSED_DIR, GESTURE_CLASSES, NUM_LANDMARKS, FEATURE_SIZE,
     NORMALIZE_BY_WRIST, SCALE_BY_HAND_SIZE, CLIP_Z_DEPTH, Z_CLIP_RANGE,
-    TEST_SPLIT, VALIDATION_SPLIT, RANDOM_SEED,
-    SCALER_PATH, LABEL_ENCODER_PATH,
+    VALIDATION_SPLIT, RANDOM_SEED, SCALER_PATH, LABEL_ENCODER_PATH,
 )
 
 FEATURE_COLS = [
@@ -103,54 +103,73 @@ def apply_feature_pipeline(X: np.ndarray) -> np.ndarray:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def load_data() -> pd.DataFrame:
-    src = AUGMENTED_CSV_PATH if AUGMENTED_CSV_PATH.exists() else CSV_PATH
-    if not src.exists():
+def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
+    # Load training data (prefer augmented train if it exists)
+    train_src = AUGMENTED_TRAIN_CSV_PATH if AUGMENTED_TRAIN_CSV_PATH.exists() else RAW_TRAIN_CSV_PATH
+    if not train_src.exists():
         raise FileNotFoundError(
-            f"Dataset not found. Run collect_data.py and augment_data.py first.\n"
-            f"Expected at: {src}"
+            f"Training dataset not found. Run process_dataset.py and augment_data.py first.\n"
+            f"Expected at: {train_src}"
         )
-    df = pd.read_csv(src)
-    print(f"[Preprocess] Loaded {len(df)} samples from {src.name}")
-    print(f"[Preprocess] Class distribution:")
-    for g, c in df["gesture"].value_counts().items():
+    train_df = pd.read_csv(train_src)
+    print(f"[Preprocess] Loaded {len(train_df)} training samples from {train_src.name}")
+
+    # Load testing data (always raw and untouched to prevent leakage)
+    test_src = RAW_TEST_CSV_PATH
+    if not test_src.exists():
+        raise FileNotFoundError(
+            f"Testing dataset not found. Run process_dataset.py first.\n"
+            f"Expected at: {test_src}"
+        )
+    test_df = pd.read_csv(test_src)
+    print(f"[Preprocess] Loaded {len(test_df)} testing samples from {test_src.name}")
+
+    print(f"\n[Preprocess] Training Class distribution:")
+    for g, c in train_df["gesture"].value_counts().items():
         print(f"  {g:>15}: {c:5d}")
-    return df
+
+    print(f"[Preprocess] Testing Class distribution:")
+    for g, c in test_df["gesture"].value_counts().items():
+        print(f"  {g:>15}: {c:5d}")
+
+    return train_df, test_df
 
 
 def preprocess_and_split():
-    df = load_data()
+    train_df, test_df = load_data()
 
-    X_raw = df[FEATURE_COLS].values.astype(np.float32)
-    y_raw = df["gesture"].values
+    X_train_raw = train_df[FEATURE_COLS].values.astype(np.float32)
+    y_train_raw = train_df["gesture"].values
+
+    X_test_raw = test_df[FEATURE_COLS].values.astype(np.float32)
+    y_test_raw = test_df["gesture"].values
 
     # ── Label encoding ──
     le = LabelEncoder()
     le.classes_ = np.array(GESTURE_CLASSES)   # fixed order from config
-    y_encoded = le.transform(y_raw)
+    y_train_encoded = le.transform(y_train_raw)
+    y_test_encoded  = le.transform(y_test_raw)
     print(f"\n[Preprocess] Label encoding: {dict(zip(le.classes_, range(len(le.classes_))))}")
 
     # ── Feature pipeline (deterministic) ──
-    X_processed = apply_feature_pipeline(X_raw)
-    print(f"[Preprocess] Feature pipeline applied. Shape: {X_processed.shape}")
+    X_train_processed = apply_feature_pipeline(X_train_raw)
+    X_test_processed  = apply_feature_pipeline(X_test_raw)
+    print(f"[Preprocess] Feature pipeline applied successfully.")
 
-    # ── Stratified splits ──
-    X_trainval, X_test, y_trainval, y_test = train_test_split(
-        X_processed, y_encoded,
-        test_size=TEST_SPLIT,
-        random_state=RANDOM_SEED,
-        stratify=y_encoded,
-    )
-
-    val_fraction = VALIDATION_SPLIT / (1.0 - TEST_SPLIT)
+    # ── Validation Split from Training Data ──
+    # Split the processed training data into final Train and Validation splits
     X_train, X_val, y_train, y_val = train_test_split(
-        X_trainval, y_trainval,
-        test_size=val_fraction,
+        X_train_processed, y_train_encoded,
+        test_size=VALIDATION_SPLIT,
         random_state=RANDOM_SEED,
-        stratify=y_trainval,
+        stratify=y_train_encoded,
     )
 
-    print(f"\n[Preprocess] Split sizes:")
+    # Test data remains untouched and isolated
+    X_test = X_test_processed
+    y_test = y_test_encoded
+
+    print(f"\n[Preprocess] Split sizes (Zero Data Leakage):")
     print(f"  Train:      {len(X_train)}")
     print(f"  Validation: {len(X_val)}")
     print(f"  Test:       {len(X_test)}")
@@ -161,7 +180,7 @@ def preprocess_and_split():
     X_val   = scaler.transform(X_val)
     X_test  = scaler.transform(X_test)
 
-    print(f"\n[Preprocess] Scaler fitted on training set.")
+    print(f"\n[Preprocess] Scaler fitted on training split (no validation or test leakage).")
     print(f"  Feature means  (first 5): {scaler.mean_[:5].round(4)}")
     print(f"  Feature scales (first 5): {scaler.scale_[:5].round(4)}")
 
@@ -186,14 +205,15 @@ def preprocess_and_split():
 
     # ── Preprocessing report ──
     report = {
-        "total_samples": int(len(df)),
-        "train_size":    int(len(X_train)),
-        "val_size":      int(len(X_val)),
-        "test_size":     int(len(X_test)),
-        "feature_size":  int(X_processed.shape[1]),
-        "wrist_normalise":       NORMALIZE_BY_WRIST,
-        "hand_size_normalise":   SCALE_BY_HAND_SIZE,
-        "z_clip":                CLIP_Z_DEPTH,
+        "total_train_samples": int(len(train_df)),
+        "total_test_samples":  int(len(test_df)),
+        "train_size":          int(len(X_train)),
+        "val_size":            int(len(X_val)),
+        "test_size":           int(len(X_test)),
+        "feature_size":        int(X_train.shape[1]),
+        "wrist_normalise":     NORMALIZE_BY_WRIST,
+        "hand_size_normalise": SCALE_BY_HAND_SIZE,
+        "z_clip":              CLIP_Z_DEPTH,
         "label_mapping": {g: int(i) for i, g in enumerate(le.classes_)},
     }
     report_path = PROCESSED_DIR / "preprocessing_report.json"

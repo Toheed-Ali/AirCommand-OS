@@ -71,12 +71,12 @@ MP_MIN_DETECTION_CONF = 0.7
 MP_MIN_TRACKING_CONF  = 0.6
 
 # ─── Dataset ──────────────────────────────────────────────────────────────────
-RAW_CSV_PATH          = RAW_DIR / "landmarks_raw.csv"
-AUGMENTED_CSV_PATH    = PROCESSED_DIR / "landmarks_augmented.csv"
-CSV_PATH              = PROCESSED_DIR / "landmarks_final.csv"
+RAW_TRAIN_CSV_PATH    = RAW_DIR / "train_raw.csv"
+RAW_TEST_CSV_PATH     = RAW_DIR / "test_raw.csv"
+AUGMENTED_TRAIN_CSV_PATH = AUGMENTED_DIR / "train_augmented.csv"
+CSV_PATH              = RAW_DIR / "custom_recorded.csv"
 SAMPLES_PER_CLASS     = 800      # target per class before augmentation
-TEST_SPLIT            = 0.15
-VALIDATION_SPLIT      = 0.15
+VALIDATION_SPLIT      = 0.15     # validation split ratio from training set
 RANDOM_SEED           = 42
 
 # ─── Preprocessing ────────────────────────────────────────────────────────────

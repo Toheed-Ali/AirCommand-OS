@@ -20,7 +20,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config.config import (
-    RAW_CSV_PATH, AUGMENTED_CSV_PATH, GESTURE_CLASSES,
+    RAW_TRAIN_CSV_PATH, AUGMENTED_TRAIN_CSV_PATH, GESTURE_CLASSES,
     NUM_LANDMARKS, FEATURE_SIZE, RANDOM_SEED,
 )
 
@@ -163,18 +163,18 @@ def balance_classes(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main():
-    if not RAW_CSV_PATH.exists():
-        print(f"[ERROR] Raw dataset not found at {RAW_CSV_PATH}")
-        print("Run collect_data.py first to create the dataset.")
+    if not RAW_TRAIN_CSV_PATH.exists():
+        print(f"[ERROR] Raw training dataset not found at {RAW_TRAIN_CSV_PATH}")
+        print("Run process_dataset.py first to extract raw landmarks.")
         return
 
-    df_raw = load_dataset(RAW_CSV_PATH)
+    df_raw = load_dataset(RAW_TRAIN_CSV_PATH)
     df_aug = augment(df_raw)
     df_bal = balance_classes(df_aug)
 
-    AUGMENTED_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    df_bal.to_csv(AUGMENTED_CSV_PATH, index=False)
-    print(f"\n[Augment] Saved augmented dataset -> {AUGMENTED_CSV_PATH}")
+    AUGMENTED_TRAIN_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    df_bal.to_csv(AUGMENTED_TRAIN_CSV_PATH, index=False)
+    print(f"\n[Augment] Saved augmented training dataset -> {AUGMENTED_TRAIN_CSV_PATH}")
 
     # Summary report
     summary = {
@@ -182,7 +182,7 @@ def main():
         "augmented_total":  int(len(df_bal)),
         "per_class": {g: int((df_bal["gesture"] == g).sum()) for g in GESTURE_CLASSES},
     }
-    report_path = AUGMENTED_CSV_PATH.parent / "augmentation_report.json"
+    report_path = AUGMENTED_TRAIN_CSV_PATH.parent / "augmentation_report.json"
     with open(report_path, "w") as f:
         json.dump(summary, f, indent=2)
     print(f"[Augment] Report -> {report_path}")

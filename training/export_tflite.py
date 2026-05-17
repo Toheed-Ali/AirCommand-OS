@@ -132,7 +132,7 @@ def export(use_int8: bool = False) -> None:
             json.dump(scaler_json, f, indent=2)
         print(f"[Export] Scaler params (JSON) -> {scaler_json_path}")
 
-    print("\n[Export] Done ✓  Copy these files to your Flutter assets folder:")
+    print("\n[Export] Done (success)  Copy these files to your Flutter assets folder:")
     print(f"  {out_path.name}")
     print(f"  model_spec.json")
     print(f"  scaler_params.json")
