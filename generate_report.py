@@ -52,6 +52,42 @@ if EVAL_REPORT_PATH.exists():
     except Exception as e:
         print(f"Warning: Could not read evaluation_report.json ({e}). Using default values.")
 
+# Default pipeline numbers in case report files are missing
+total_raw_detected = 10333
+train_raw_detected = 8272
+test_raw_detected = 2061
+augmented_train_samples = 76800
+train_size = 65280
+val_size = 11520
+test_size = 2061
+
+# Load preprocessing & augmentation reports
+PREPROCESS_REPORT_PATH = ROOT_DIR / "data" / "processed" / "preprocessing_report.json"
+AUGMENT_REPORT_PATH = ROOT_DIR / "data" / "augmented" / "augmentation_report.json"
+
+if PREPROCESS_REPORT_PATH.exists():
+    try:
+        with open(PREPROCESS_REPORT_PATH, "r") as f:
+            prep_data = json.load(f)
+            train_raw_detected = prep_data.get("total_train_samples", train_raw_detected)
+            test_raw_detected = prep_data.get("total_test_samples", test_raw_detected)
+            train_size = prep_data.get("train_size", train_size)
+            val_size = prep_data.get("val_size", val_size)
+            test_size = prep_data.get("test_size", test_size)
+    except Exception as e:
+        print(f"Warning: Could not read preprocessing_report.json ({e})")
+
+if AUGMENT_REPORT_PATH.exists():
+    try:
+        with open(AUGMENT_REPORT_PATH, "r") as f:
+            aug_data = json.load(f)
+            train_raw_detected = aug_data.get("original_samples", train_raw_detected)
+            augmented_train_samples = aug_data.get("augmented_total", augmented_train_samples)
+    except Exception as e:
+        print(f"Warning: Could not read augmentation_report.json ({e})")
+
+total_raw_detected = train_raw_detected + test_raw_detected
+
 # Prepare Classification Data
 labels = ["fist", "l_gesture", "palm", "peace", "three_fingers", "thumbs_up"]
 
@@ -151,6 +187,11 @@ def generate_markdown():
         row_vals = [str(x) for x in confusion_matrix[i]]
         cm_table += f"| **{label}** | " + " | ".join(row_vals) + " |\n"
 
+    report_table = "| Class / Gesture | Precision | Recall | F1-Score | Support | OS Gesture Action Map |\n"
+    report_table += "| :--- | :---: | :---: | :---: | :---: | :--- |\n"
+    for name, prec, rec, f1, sup, action in class_report_data:
+        report_table += f"| **{name}** | {prec} | {rec} | {f1} | {sup} | {action} |\n"
+
     md_content = f"""# AirCommand-OS — Hand Gesture Recognition Project Report
 
 Welcome to the complete documentation and technical journey of **AirCommand-OS**, a real-time computer vision and deep learning system that translates hand gestures into OS-level system actions, integrated with a Flutter mobile app via WebSocket.
@@ -179,8 +220,13 @@ Originally, all training data was collected dynamically from the webcam using a 
 Recently, the dataset went through a **rigorous 80-20 Train/Test split** where 20% of the files for every class folder were randomly selected and moved to a dedicated testing folder to prevent data leakage and ensure pristine evaluations:
 
 ### File Split Statistics:
-* **Total Dataset Size:** ~18,000 processed samples.
-* **Train / Test Split:** **80% Train, 20% Test**
+* **Total Raw Samples Detected:** {total_raw_detected} landmarks vectors (Train Split: {train_raw_detected}, Test Split: {test_raw_detected})
+* **Split Ratios:** **~80% Train, ~20% Test**
+* **Augmented Balanced Training Dataset:** {augmented_train_samples} samples (12,800 per class after augmentation)
+* **Preprocessed Zero-Leakage Splits:**
+  * **Training Split:** {train_size} samples (85% of augmented training dataset)
+  * **Validation Split:** {val_size} samples (15% of augmented training dataset)
+  * **Testing Split:** {test_size} samples (strictly pristine raw landmarks, 100% leak-free!)
 * **Class Folders:**
   1. **`3 fingers`** (Three Fingers → Brightness Down)
   2. **`fist`** (Fist → Play / Pause Media)
@@ -235,14 +281,7 @@ The deep learning model achieved outstanding performance during evaluation on th
 * **Weighted F1 Score:** `{f1_weighted:.6f}`
 
 ### Classification Report:
-| Class / Gesture | Precision | Recall | F1-Score | Support |
-| :--- | :---: | :---: | :---: | :---: |
-| **fist** | 1.0000 | 0.9988 | 0.9994 | 2400 |
-| **l_gesture** | 1.0000 | 1.0000 | 1.0000 | 2400 |
-| **palm** | 0.9996 | 0.9996 | 0.9996 | 2400 |
-| **peace** | 1.0000 | 1.0000 | 1.0000 | 2400 |
-| **three_fingers** | 0.9992 | 0.9996 | 0.9994 | 2400 |
-| **thumbs_up** | 0.9992 | 1.0000 | 0.9996 | 2400 |
+{report_table}
 
 ### Confusion Matrix:
 {cm_table}
@@ -449,10 +488,15 @@ def generate_docx():
     run_callout_title.font.color.rgb = COLOR_PRIMARY
     
     run_callout_body = p_callout.add_run(
-        "• Total Processed Samples: ~18,000 landmarks vectors\n"
-        "• Train Split: 80% (used to parameterize neural network weights)\n"
-        "• Test Split: 20% (strictly preserved for pristine mathematical evaluation)\n"
-        "• Gestures Supported: fist, l_gesture, palm, peace, three_fingers, thumbs_up"
+        f"• Total Raw Samples Detected: {total_raw_detected} landmarks vectors\n"
+        f"  - Train Split (Raw): {train_raw_detected} samples (~80%)\n"
+        f"  - Test Split (Raw): {test_raw_detected} samples (~20%)\n"
+        f"• Balanced Augmented Training Set: {augmented_train_samples} samples (12,800 per class)\n"
+        f"• Final Leak-Free Preprocessed Splits:\n"
+        f"  - Train Split (Augmented): {train_size} samples (85%)\n"
+        f"  - Validation Split (Augmented): {val_size} samples (15%)\n"
+        f"  - Test Split (Pristine Raw): {test_size} samples (100% isolated)\n"
+        f"• Gestures Supported: fist, l_gesture, palm, peace, three_fingers, thumbs_up"
     )
     run_callout_body.font.size = Pt(9.5)
     p_callout.paragraph_format.line_spacing = 1.2

@@ -26,8 +26,13 @@ Originally, all training data was collected dynamically from the webcam using a 
 Recently, the dataset went through a **rigorous 80-20 Train/Test split** where 20% of the files for every class folder were randomly selected and moved to a dedicated testing folder to prevent data leakage and ensure pristine evaluations:
 
 ### File Split Statistics:
-* **Total Dataset Size:** ~18,000 processed samples.
-* **Train / Test Split:** **80% Train, 20% Test**
+* **Total Raw Samples Detected:** 10333 landmarks vectors (Train Split: 8272, Test Split: 2061)
+* **Split Ratios:** **~80% Train, ~20% Test**
+* **Augmented Balanced Training Dataset:** 76800 samples (12,800 per class after augmentation)
+* **Preprocessed Zero-Leakage Splits:**
+  * **Training Split:** 65280 samples (85% of augmented training dataset)
+  * **Validation Split:** 11520 samples (15% of augmented training dataset)
+  * **Testing Split:** 2061 samples (strictly pristine raw landmarks, 100% leak-free!)
 * **Class Folders:**
   1. **`3 fingers`** (Three Fingers → Brightness Down)
   2. **`fist`** (Fist → Play / Pause Media)
@@ -82,14 +87,15 @@ The deep learning model achieved outstanding performance during evaluation on th
 * **Weighted F1 Score:** `0.998545`
 
 ### Classification Report:
-| Class / Gesture | Precision | Recall | F1-Score | Support |
-| :--- | :---: | :---: | :---: | :---: |
-| **fist** | 1.0000 | 0.9988 | 0.9994 | 2400 |
-| **l_gesture** | 1.0000 | 1.0000 | 1.0000 | 2400 |
-| **palm** | 0.9996 | 0.9996 | 0.9996 | 2400 |
-| **peace** | 1.0000 | 1.0000 | 1.0000 | 2400 |
-| **three_fingers** | 0.9992 | 0.9996 | 0.9994 | 2400 |
-| **thumbs_up** | 0.9992 | 1.0000 | 0.9996 | 2400 |
+| Class / Gesture | Precision | Recall | F1-Score | Support | OS Gesture Action Map |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **fist** | 0.9919 | 1.0000 | 0.9959 | 245 | Fist (Play/Pause Media) |
+| **l_gesture** | 1.0000 | 1.0000 | 1.0000 | 159 | L Gesture (Open Chrome) |
+| **palm** | 0.9975 | 0.9975 | 0.9975 | 394 | Palm (Shift + Tab) |
+| **peace** | 1.0000 | 0.9982 | 0.9991 | 546 | Peace (Brightness Up) |
+| **three_fingers** | 1.0000 | 1.0000 | 1.0000 | 640 | Three Fingers (Brightness Down) |
+| **thumbs_up** | 1.0000 | 0.9870 | 0.9935 | 77 | Thumbs Up (Volume Up) |
+
 
 ### Confusion Matrix:
 | Actual \ Predicted | fist | l_gesture | palm | peace | three_fingers | thumbs_up |
