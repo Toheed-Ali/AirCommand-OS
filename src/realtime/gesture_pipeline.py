@@ -184,24 +184,37 @@ def draw_hud(frame, prediction: dict, smoother_result: dict,
     cv2.putText(frame, "Q = quit   R = reset smoother",
                 (14, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)
 
-    # Styled Glassmorphism Gesture & Action Card in Bottom-Left
+    # Styled Glassmorphism Gestures Map Guide in Bottom-Left
     overlay_bl = frame.copy()
-    cv2.rectangle(overlay_bl, (14, h - 100), (320, h - 35), (20, 20, 20), -1)
+    cv2.rectangle(overlay_bl, (14, h - 160), (320, h - 25), (20, 20, 20), -1)
     cv2.addWeighted(overlay_bl, 0.75, frame, 0.25, 0, frame)
 
-    accent_colour = COLOR_HOLD if hold else (COLOR_VALID if valid else COLOR_INVALID)
-    stable_gesture = smoother_result.get("stable_gesture", "unknown")
-    if stable_gesture not in ("unknown", "invalid"):
-        g_disp = GESTURE_DISPLAY_NAMES.get(stable_gesture, stable_gesture).upper()
-        act_disp = GESTURE_ACTION_MAP.get(stable_gesture, {}).get("label", "—").upper()
-    else:
-        g_disp = "—"
-        act_disp = "IDLE"
+    # Title
+    cv2.putText(frame, "GESTURE CONTROLS GUIDE", (22, h - 144),
+                cv2.FONT_HERSHEY_DUPLEX, 0.45, (0, 200, 255), 1, cv2.LINE_AA)
 
-    cv2.putText(frame, f"GESTURE: {g_disp}", (26, h - 77),
-                cv2.FONT_HERSHEY_DUPLEX, 0.55, accent_colour, 1, cv2.LINE_AA)
-    cv2.putText(frame, f"ACTION:  {act_disp}", (26, h - 52),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_TEXT, 1, cv2.LINE_AA)
+    guide_items = [
+        ("fist",          "Fist -> Play/Pause"),
+        ("l_gesture",     "L Gesture -> Open Chrome"),
+        ("palm",          "Palm -> Open Settings"),
+        ("peace",         "Peace -> Brightness Up"),
+        ("three_fingers", "Three Fingers -> Brightness Down"),
+        ("thumbs_up",     "Thumbs Up -> Volume Up"),
+    ]
+
+    stable_gesture = smoother_result.get("stable_gesture", "unknown")
+
+    for i, (g_key, text) in enumerate(guide_items):
+        y_pos = h - 124 + (i * 15)
+        if stable_gesture == g_key:
+            row_colour = COLOR_HOLD if hold else COLOR_VALID
+            cv2.circle(frame, (23, y_pos - 4), 3, row_colour, -1)
+            cv2.putText(frame, text, (32, y_pos),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.35, row_colour, 1, cv2.LINE_AA)
+        else:
+            row_colour = COLOR_TEXT
+            cv2.putText(frame, text, (24, y_pos),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.35, row_colour, 1, cv2.LINE_AA)
 
 
 # ─── Main pipeline ─────────────────────────────────────────────────────────────
