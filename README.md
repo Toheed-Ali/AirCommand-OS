@@ -1,65 +1,71 @@
-# Gesture Control System — ML Pipeline
+# AirCommand-OS — Hand Gesture Control System
 
-Real-time hand gesture recognition system using MediaPipe + MLP neural network,
-designed to control mobile device functions via webcam-detected gestures.
+> Real-time hand gesture recognition pipeline that translates webcam-detected hand poses into OS-level actions (volume, brightness, media, app launch). Exports a TFLite model for Flutter mobile integration via WebSocket.
+
+---
+
+## How It Works
+
+```
+Webcam → MediaPipe Hand Landmarker → 63 raw coordinates
+       → Wrist normalisation + hand-size scaling + Z-clipping
+       → StandardScaler → MLP (256→128→64→6) → Softmax
+       → Confidence gate (0.97) → Temporal smoother (12-frame majority vote)
+       → Action Engine → OS system call  +  WebSocket → Flutter
+```
 
 ---
 
 ## Gesture → Action Mapping
 
-| Gesture        | Action               | Trigger |
-|----------------|----------------------|---------|
-| Thumbs Up      | Volume Up            | Tap     |
-| Thumbs Up (hold) | Volume Down        | Hold 2s |
-| Fist           | Play / Pause Media   | Tap     |
-| L Gesture      | Open App             | Tap     |
-| Palm           | Power Off            | Hold 3s |
-| Peace          | Brightness Up        | Tap     |
-| Three Fingers  | Brightness Down      | Tap     |
+| Gesture | Action | Trigger |
+|---|---|---|
+| 👍 Thumbs Up | Volume Up | Tap |
+| ✊ Fist | Play / Pause Media | Tap |
+| 🤟 L Gesture | Open Chrome | Tap |
+| 🖐 Palm | Shift + Tab | Tap |
+| ✌️ Peace | Brightness Up | Tap |
+| 🤟 Three Fingers | Brightness Down | Tap |
+
+> Hold actions can be added in `config/config.py → HOLD_ACTION_MAP`.
 
 ---
 
 ## Project Structure
 
 ```
-gesture_control/
+AirCommand-OS/
 │
 ├── config/
-│   └── config.py              ← Single source of truth for all parameters
-│
-├── data/
-│   ├── raw/                   ← Raw collected CSVs (before augmentation)
-│   ├── augmented/             ← After mirror + noise + scale augmentation
-│   └── processed/             ← Train/val/test .npy splits + scaler/encoder
+│   └── config.py              ← Single source of truth for ALL parameters
 │
 ├── src/
 │   ├── collection/
-│   │   ├── collect_data.py    ← Interactive webcam data collector
-│   │   └── augment_data.py    ← Augmentation: mirror + noise + balancing
+│   │   ├── collect_data.py    ← Interactive webcam landmark collector
+│   │   ├── augment_data.py    ← Mirror flip + noise + scale jitter (~5× data)
+│   │   └── process_dataset.py
 │   │
 │   ├── preprocessing/
-│   │   └── preprocess.py      ← Wrist-norm → scale → scaler → split
+│   │   └── preprocess.py      ← Wrist-norm → hand-scale → z-clip → scaler → split
 │   │
 │   ├── model/
-│   │   └── model.py           ← MLP architecture + predict helper
+│   │   └── model.py           ← MLP architecture (Dense + BN + Dropout)
 │   │
 │   └── realtime/
-│       ├── temporal_smoother.py  ← Sliding-window majority vote
-│       ├── action_engine.py      ← Gesture → OS action dispatcher
-│       ├── websocket_server.py   ← Python ↔ Flutter WebSocket bridge
-│       └── gesture_pipeline.py  ← Main real-time recognition loop
+│       ├── gesture_pipeline.py   ← Main loop: camera → predict → act
+│       ├── temporal_smoother.py  ← Sliding-window majority vote + hold detection
+│       ├── action_engine.py      ← Gesture → OS action dispatcher (cross-platform)
+│       └── websocket_server.py   ← Async WebSocket bridge to Flutter clients
 │
 ├── training/
-│   ├── train.py               ← Full training + evaluation script
-│   ├── evaluate.py            ← Plots: confusion matrix, curves, metrics
-│   └── export_tflite.py       ← Convert to .tflite for Flutter
+│   ├── train.py               ← Train MLP with EarlyStopping + ReduceLR
+│   ├── evaluate.py            ← Confusion matrix, curves, F1 charts
+│   └── export_tflite.py       ← Convert to .tflite (float16 or int8) for Flutter
 │
-├── models/
-│   └── saved/                 ← gesture_mlp.keras + scaler.pkl + encoder.pkl
-│
-├── exports/                   ← gesture_model.tflite + model_spec.json
+├── data/                      ← Raw / augmented / processed CSVs + .npy splits
+├── models/                    ← gesture_mlp.keras + scaler.pkl + label_encoder.pkl
+├── exports/                   ← gesture_model.tflite + model_spec.json + scaler_params.json
 ├── logs/
-├── notebooks/
 ├── requirements.txt
 └── README.md
 ```
@@ -69,27 +75,30 @@ gesture_control/
 ## Setup
 
 ```bash
-# 1. Create virtual environment
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+# 1. Create & activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # Linux / macOS
 
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Verify GPU (optional but faster training)
+# 3. Download MediaPipe Hand Landmarker model
+#    Place hand_landmarker.task inside:  models/mediapipe/
+#    Download: https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
+
+# 4. (Optional) Verify GPU
 python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
 ```
 
 ---
 
-## Step-by-Step Workflow
+## End-to-End Workflow
 
-### Phase 1 — Collect data
-
-Collect 800 samples per gesture class. Run once per gesture:
+### Phase 1 — Collect Training Data
 
 ```bash
-# Collect each gesture (SPACE to capture, Q to save)
+# Collect 800 samples per gesture (SPACE to capture, Q to save)
 python src/collection/collect_data.py --gesture fist          --samples 800
 python src/collection/collect_data.py --gesture l_gesture     --samples 800 --append
 python src/collection/collect_data.py --gesture palm          --samples 800 --append
@@ -98,137 +107,213 @@ python src/collection/collect_data.py --gesture three_fingers --samples 800 --ap
 python src/collection/collect_data.py --gesture thumbs_up     --samples 800 --append
 ```
 
-Controls during collection:
-- `SPACE` — capture current frame
-- `R` — undo last capture
-- `P` — pause/resume
-- `Q` — save and quit
+| Key | Action |
+|-----|--------|
+| `SPACE` | Capture current frame |
+| `R` | Undo last capture |
+| `P` | Pause / resume preview |
+| `Q` | Save and quit |
 
-### Phase 2 — Augment dataset
+### Phase 2 — Augment Dataset
 
 ```bash
-# Adds mirror flip, noise, scale jitter → ~5× more samples
-# Also balances class counts
+# Adds mirror flip, Gaussian noise, scale jitter → ~5× more samples + class balancing
 python src/collection/augment_data.py
 ```
 
 ### Phase 3 — Preprocess
 
 ```bash
-# Wrist-origin normalisation → hand-size scaling → StandardScaler → train/val/test split
+# Wrist-origin normalisation → hand-size scaling → z-clipping → StandardScaler → stratified split
 python src/preprocessing/preprocess.py
+# Outputs: data/processed/{X,y}_{train,val,test}.npy + scaler.pkl + label_encoder.pkl
 ```
 
 ### Phase 4 — Train
 
 ```bash
 python training/train.py
-# Or with custom params:
+# Or override defaults:
 python training/train.py --epochs 200 --batch-size 32
+
+# Expected: val_accuracy ≈ 0.97+
 ```
 
-Expected output on a good dataset: **val_accuracy ≈ 0.97+**
+Callbacks active during training:
+- **ModelCheckpoint** — saves best `val_accuracy` model
+- **EarlyStopping** — patience 15 epochs
+- **ReduceLROnPlateau** — halves LR when val_loss plateaus (patience 8)
 
 ### Phase 5 — Evaluate
 
 ```bash
 python training/evaluate.py
-# Generates confusion matrix, training curves, per-class F1 bar chart
-# Saved to models/saved/plots/
+# Generates: confusion matrix, training curves, per-class F1 bar chart
+# Saved to: models/saved/plots/
 ```
 
-### Phase 6 — Export to TFLite (for Flutter)
+### Phase 6 — Export to TFLite
 
 ```bash
+# Float16 quantisation (~50% size reduction, negligible accuracy drop)
 python training/export_tflite.py
-# Output: exports/gesture_model.tflite
-#         exports/model_spec.json
-#         exports/scaler_params.json
+
+# Full INT8 quantisation (maximum compression, needs calibration data)
+python training/export_tflite.py --int8
+
+# Output files:
+#   exports/gesture_model.tflite
+#   exports/model_spec.json       ← input/output shapes, gesture labels
+#   exports/scaler_params.json    ← StandardScaler mean/scale as JSON for Flutter
 ```
 
-### Phase 7 — Run real-time pipeline
+### Phase 7 — Run Real-Time Pipeline
 
 ```bash
-# With display window
+# Standard (with display window)
 python src/realtime/gesture_pipeline.py
 
-# Headless (for server / no monitor)
+# Headless / server mode (no OpenCV window)
 python src/realtime/gesture_pipeline.py --no-display
 
-# Dry run (no actual system actions)
+# Dry run (logs actions but doesn't execute system calls)
 python src/realtime/gesture_pipeline.py --dry-run
 ```
+
+HUD controls during runtime:
+- `Q` — quit
+- `R` — reset temporal smoother
+
+---
+
+## Model Architecture
+
+```
+Input (63 features)
+  → Dense(256) + BatchNorm + ReLU + Dropout(0.3)
+  → Dense(128) + BatchNorm + ReLU + Dropout(0.3)
+  → Dense(64)  + BatchNorm + ReLU + Dropout(0.3)
+  → Dense(6, Softmax)
+```
+
+- **Optimizer**: Adam (lr=1e-3)
+- **Loss**: Sparse Categorical Crossentropy
+- **Regularisation**: L2 (1e-4) on all Dense kernels + Dropout
+- **Invalid gesture**: handled by confidence threshold (not an extra class)
 
 ---
 
 ## Key Design Decisions
 
-### Invalid gesture protection
-Confidence threshold = 0.85. Any frame where the top class probability
-falls below this is classified as "invalid" — no action is triggered.
-This prevents spurious commands from ambiguous or transitional hand poses.
+### Feature Engineering
+Raw MediaPipe coordinates are image-space floats (0–1). Three transforms make features position-, distance-, and user-invariant:
 
-### Left-hand support
-Dataset collected right-hand only. Augmentation applies horizontal mirror
-(x_new = 1 - x_old) to every sample. The model learns both orientations
-without requiring a separate left-hand collection session.
+1. **Wrist-origin normalisation** — translates all 21 landmarks so wrist (lm 0) is at `(0, 0, 0)`
+2. **Hand-size scaling** — divides by the Euclidean distance from wrist to middle-finger tip (lm 12)
+3. **Z-depth clipping** — clips z to `[-0.15, 0.15]` (MediaPipe z is noisy relative to xy)
 
-### Temporal smoothing
-Raw per-frame predictions are inherently noisy. A sliding window of 10 frames
-with a majority-vote threshold of 7 means a gesture must be held steadily for
-~0.33 seconds (at 30 fps) before it fires. This eliminates flicker.
+### Left-Hand Support
+Only right-hand data is collected. Augmentation applies a horizontal mirror (`x_new = 1 − x_old`) so the model learns both handedness without a second collection session.
 
-### Hold actions
-The temporal smoother tracks how long a stable gesture has been held.
-- Regular tap → primary action fires immediately on reaching vote threshold
-- Hold 2s+ → secondary action fires (e.g., thumbs-up hold → volume down)
-- Palm hold 3s+ → power off (extra safety margin)
+### Temporal Smoothing
+Raw per-frame predictions are noisy. A 12-frame sliding window accepts a gesture only when it appears ≥ 9 times — requiring ~0.4 s of stable hold at 30 fps before any action fires.
 
-### Feature engineering (wrist normalisation)
-Raw MediaPipe coordinates are in image-space (0–1 relative to frame).
-We translate so wrist (landmark 0) is at origin, then scale by the
-wrist→middle-finger-tip distance. This makes features invariant to:
-  - Where in frame the hand is placed
-  - How close/far the hand is from camera
-  - Hand physical size differences between users
+### Hold Actions
+The `TemporalSmoother` tracks uninterrupted gesture duration. Secondary actions fire after `HOLD_TRIGGER_SEC` (2 s default); `palm` requires `POWER_OFF_HOLD_SEC` (3 s) as a safety margin.
+
+### Confidence Gate
+Any frame where the top-class probability is below `CONFIDENCE_THRESHOLD` (0.97) is classified as `"invalid"` — no action is triggered and the smoother receives a negative vote.
 
 ---
 
-## Configuration
+## Configuration Reference
 
-All parameters in `config/config.py`. Key tunable values:
+All parameters live in `config/config.py` — nothing is hardcoded elsewhere.
 
-| Parameter                | Default | Description |
-|--------------------------|---------|-------------|
-| `CONFIDENCE_THRESHOLD`   | 0.85    | Min confidence to accept a prediction |
-| `SMOOTHING_WINDOW_SIZE`  | 10      | Frames in sliding window |
-| `MAJORITY_VOTE_MIN`      | 7       | Votes needed to confirm gesture |
-| `ACTION_COOLDOWN_SEC`    | 1.5     | Seconds between repeated action triggers |
-| `HOLD_TRIGGER_SEC`       | 2.0     | Seconds to activate hold action |
-| `MLP_HIDDEN_LAYERS`      | [256, 128, 64] | Neurons per hidden layer |
-| `MLP_DROPOUT_RATE`       | 0.3     | Dropout regularisation |
-| `EPOCHS`                 | 150     | Max training epochs |
-| `SAMPLES_PER_CLASS`      | 800     | Target samples per gesture |
+| Parameter | Default | Description |
+|---|---|---|
+| `CONFIDENCE_THRESHOLD` | `0.97` | Min probability to accept a prediction |
+| `SMOOTHING_WINDOW_SIZE` | `12` | Frames in sliding window |
+| `MAJORITY_VOTE_MIN` | `9` | Votes needed to confirm a gesture |
+| `ACTION_COOLDOWN_SEC` | `1.5` | Minimum seconds between repeated triggers |
+| `HOLD_TRIGGER_SEC` | `2.0` | Seconds held to fire secondary action |
+| `MLP_HIDDEN_LAYERS` | `[256, 128, 64]` | Neurons per hidden layer |
+| `MLP_DROPOUT_RATE` | `0.3` | Dropout regularisation |
+| `LEARNING_RATE` | `1e-3` | Adam learning rate |
+| `EPOCHS` | `150` | Max training epochs |
+| `BATCH_SIZE` | `64` | Training batch size |
+| `SAMPLES_PER_CLASS` | `800` | Target raw samples per gesture |
+| `WEBSOCKET_PORT` | `8765` | Python ↔ Flutter bridge port |
 
 ---
 
 ## Flutter Integration
 
-After exporting, copy these to your Flutter project's `assets/` folder:
-- `gesture_model.tflite`
-- `model_spec.json`
-- `scaler_params.json`
+### Asset Files
+After export, copy these three files to your Flutter project's `assets/` folder:
 
-The Flutter app connects to the Python WebSocket server at
-`ws://localhost:8765` and receives JSON action events:
-
-```json
-{
-  "type": "action_triggered",
-  "action": "volume_up",
-  "gesture": "thumbs_up",
-  "label": "Volume Up",
-  "confidence": 0.97,
-  "timestamp": 1720000000.0
-}
 ```
+gesture_model.tflite   ← quantised MLP model
+model_spec.json        ← input/output tensor shapes + gesture labels
+scaler_params.json     ← StandardScaler mean + scale arrays
+```
+
+### Preprocessing in Dart (before inference)
+Apply the same pipeline the Python side uses:
+1. Wrist-origin normalisation
+2. Hand-size scaling (wrist → middle-finger-tip distance)
+3. Z-depth clipping to `[-0.15, 0.15]`
+4. StandardScaler: `(x − mean) / scale` using values from `scaler_params.json`
+
+### WebSocket Protocol
+The Python server binds on `ws://0.0.0.0:8765`. Connect from Flutter and receive JSON events:
+
+**Server → Flutter:**
+```json
+{ "type": "action_triggered", "action": "volume_up", "gesture": "thumbs_up",
+  "label": "Volume Up", "confidence": 0.98, "timestamp": 1720000000.0 }
+
+{ "type": "gesture_update", "gesture": "thumbs_up", "confidence": 0.98,
+  "valid": true, "all_probs": { "thumbs_up": 0.98, "fist": 0.01, ... } }
+
+{ "type": "system_status", "fps": 28.4, "clients_connected": 1, "model_loaded": true }
+```
+
+**Flutter → Server:**
+```json
+{ "type": "ping" }
+{ "type": "update_settings", "confidence_threshold": 0.90 }
+{ "type": "get_status" }
+```
+
+---
+
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| `tensorflow >= 2.15` | MLP training + TFLite export |
+| `mediapipe >= 0.10.9` | Hand landmark detection (Tasks API) |
+| `opencv-python >= 4.9` | Webcam capture + HUD rendering |
+| `scikit-learn >= 1.4` | StandardScaler, train/test split, metrics |
+| `numpy`, `pandas` | Data handling |
+| `websockets >= 12.0` | Async Python ↔ Flutter bridge |
+| `pycaw`, `screen-brightness-control` | Windows volume / brightness control |
+| `matplotlib`, `seaborn` | Evaluation plots |
+
+---
+
+## Platform Support
+
+| Feature | Windows | Linux | macOS |
+|---|---|---|---|
+| Volume control | ✅ `ctypes` VK keys | ✅ `amixer` | ✅ `osascript` |
+| Brightness control | ✅ `screen-brightness-control` | ✅ `brightnessctl` | ⚠️ Not implemented |
+| Media play/pause | ✅ VK_MEDIA_PLAY_PAUSE | ✅ `playerctl` | ✅ `osascript` |
+| App launch | ✅ | ✅ | ✅ |
+
+---
+
+## License
+
+MIT — see `LICENSE` for details.
