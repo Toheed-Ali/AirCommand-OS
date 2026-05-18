@@ -1,0 +1,41 @@
+{
+  "model_file": "gesture_model.tflite",
+  "input_shape": [
+    1,
+    63
+  ],
+  "input_dtype": "float32",
+  "output_shape": [
+    1,
+    6
+  ],
+  "output_dtype": "float32",
+  "gesture_labels": [
+    "fist",
+    "l_gesture",
+    "palm",
+    "peace",
+    "three_fingers",
+    "thumbs_up"
+  ],
+  "label_to_index": {
+    "fist": 0,
+    "l_gesture": 1,
+    "palm": 2,
+    "peace": 3,
+    "three_fingers": 4,
+    "thumbs_up": 5
+  },
+  "confidence_threshold": 0.85,
+  "feature_size": 63,
+  "preprocessing": {
+    "wrist_normalise": true,
+    "hand_size_normalise": true,
+    "z_clip": [
+      -0.15,
+      0.15
+    ],
+    "scaler": "StandardScaler \u2014 load scaler.pkl or embed means/scales",
+    "note": "Apply wrist_normalise \u2192 hand_size_normalise \u2192 z_clip \u2192 StandardScaler before inference"
+  }
+}

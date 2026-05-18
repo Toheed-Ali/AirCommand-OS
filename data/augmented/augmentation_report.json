@@ -1,0 +1,12 @@
+{
+  "original_samples": 8272,
+  "augmented_total": 76800,
+  "per_class": {
+    "fist": 12800,
+    "l_gesture": 12800,
+    "palm": 12800,
+    "peace": 12800,
+    "three_fingers": 12800,
+    "thumbs_up": 12800
+  }
+}

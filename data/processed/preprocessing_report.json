@@ -1,0 +1,19 @@
+{
+  "total_train_samples": 76800,
+  "total_test_samples": 2061,
+  "train_size": 65280,
+  "val_size": 11520,
+  "test_size": 2061,
+  "feature_size": 63,
+  "wrist_normalise": true,
+  "hand_size_normalise": true,
+  "z_clip": true,
+  "label_mapping": {
+    "fist": 0,
+    "l_gesture": 1,
+    "palm": 2,
+    "peace": 3,
+    "three_fingers": 4,
+    "thumbs_up": 5
+  }
+}

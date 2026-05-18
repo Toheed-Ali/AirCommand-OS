@@ -23,14 +23,14 @@ logs/*.log
 
 # ---- Large binary / data directories ----
 # Dataset images (too large for git)
-data/
-dataset/
+# data/
+# dataset/
 
 # Trained model files
-models/
+# models/
 
 # Exports
-exports/
+# exports/
 
 # OS files
 .DS_Store
